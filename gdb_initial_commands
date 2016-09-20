@@ -1,0 +1,6 @@
+set architecture i386:x86-64
+target remote localhost:1234
+# connect to kernel
+set var wait=0
+next 3
+# pass the initial hang and proceed straight to code 
