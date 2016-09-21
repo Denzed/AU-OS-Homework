@@ -1,6 +1,22 @@
 #include <stdint.h>
 #include "desc.h"
 
+void read_idtr(struct desc_table_ptr *ptr) {
+    __asm__ ("sidt %0" : "=m"(*ptr));
+}
+
+void write_idtr(const struct desc_table_ptr *ptr) {
+    __asm__ ("lidt %0" : : "m"(*ptr));
+}
+
+void read_gdtr(struct desc_table_ptr *ptr) {
+    __asm__ ("sgdt %0" : "=m"(*ptr));
+}
+
+void write_gdtr(const struct desc_table_ptr *ptr) {
+    __asm__ ("lgdt %0" : : "m"(*ptr));
+}
+
 void make_entry(uint64_t offset, 
                 uint16_t segment, 
                 uint8_t P, 

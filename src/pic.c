@@ -7,7 +7,7 @@ void init_master_PIC(void) {
     // init command
     out8(master_PIC_command_register, PIC_init);
     // map first irq to the specified IDT table position
-    out8(master_PIC_data_register, 0x20);
+    out8(master_PIC_data_register, master_PIC_first_input_IDT_position);
     // bit mask of slave connections
     out8(master_PIC_data_register, 1 << slave_PIC_irq);
     // other parameters
@@ -22,7 +22,7 @@ void init_slave_PIC(void) {
     // init command
     out8(slave_PIC_command_register, PIC_init);
     // map first irq to the specified IDT table position
-    out8(slave_PIC_data_register, 32 + 8 - 1);
+    out8(slave_PIC_data_register, master_PIC_first_input_IDT_position + 8 - 1);
     // irq of master PIC to which current slave is connected
     out8(slave_PIC_data_register, 0x2);         
     // other parameters

@@ -1,6 +1,36 @@
 #include <stdint.h>
 #include "io.h"
 
+void out8(unsigned short port, uint8_t data) {
+    __asm__ volatile ("outb %0, %1" : : "a"(data), "d"(port));
+}
+
+uint8_t in8(unsigned short port) {
+    uint8_t value;
+    __asm__ volatile ("inb %1, %0" : "=a"(value) : "d"(port));
+    return value;
+}
+
+void out16(unsigned short port, uint16_t data) {
+    __asm__ volatile ("outw %0, %1" : : "a"(data), "d"(port));
+}
+
+uint16_t in16(unsigned short port) {
+    uint16_t value;
+    __asm__ volatile ("inw %1, %0" : "=a"(value) : "d"(port));
+    return value;
+}
+
+void out32(unsigned short port, uint32_t data) {
+    __asm__ volatile ("outl %0, %1" : : "a"(data), "d"(port));
+}
+
+uint32_t in32(unsigned short port) {
+    uint32_t value;
+    __asm__ volatile ("inl %1, %0" : "=a"(value) : "d"(port));
+    return value;
+}
+
 void init_serial() {
     out8(COM1 + 1, 0x00);    // Disable all interrupts
     out8(COM1 + 3, 0x80);    // Enable DLAB (set baud rate divisor)
@@ -11,7 +41,7 @@ void init_serial() {
     out8(COM1 + 4, 0x0B);    // IRQs enabled, RTS/DSR set
 }
 
-int serial_received() {
+static inline int serial_received() {
     return in8(COM1 + 5) & 1;
 }
  
@@ -20,7 +50,7 @@ char read_serial() {
     return in8(COM1);
 }
 
-int is_transmit_empty() {
+static inline int is_transmit_empty() {
     return in8(COM1 + 5) & 0x20;
 }
  

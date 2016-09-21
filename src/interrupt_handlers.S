@@ -49,15 +49,14 @@
 
 .macro DEF_WRAPPER n
     wrapper\n:
-        AKA_PUSHA
+        pushq $0
         pushq $\n
         jmp inner_wrapper
 .endm
 
 .macro DEF_WRAPPER_ERROR n
     wrapper\n:
-        add $0x8, %rsp      // remove the errcode
-        AKA_PUSHA
+        # add $0x8, %rsp      // remove the errcode
         pushq $\n
         jmp inner_wrapper
 .endm
@@ -70,10 +69,13 @@
 .extern interrupt_handler
 
 inner_wrapper:
-    popq %rdi                // load n to first argument
+    AKA_PUSHA
+    movq 0x78(%rsp), %rdi    // load n to first argument
+    movq 0x7c(%rsp), %rsi    // load errcode to second argument
     cld
     call interrupt_handler
-    AKA_POPA                 // restore state
+    AKA_POPA                  // restore state
+    addq $0x10, %rsp          // "pop" n and errcode
     iretq
 
 #define ENTRIES 2

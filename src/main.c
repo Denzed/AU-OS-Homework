@@ -54,7 +54,6 @@ void main(void) {
     enable_interrupts();
 
     gen_interrupt(29);
-    gen_interrupt(33);
 
     while (1);
 }

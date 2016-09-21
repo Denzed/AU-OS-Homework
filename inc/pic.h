@@ -5,6 +5,10 @@
 #define master_PIC_data_register 0x21
 #define slave_PIC_command_register 0xA0
 #define slave_PIC_data_register 0xA1
+#define master_PIC_first_input_IDT_position 0x20
+// the last one is chosen in a way that other interrupts will have 
+// smaller number
+// IMPORTANT: must be divisible by 8 as PIC ignores 3 least bits
 
 // irq stands for Interrupt ReQuest
 
