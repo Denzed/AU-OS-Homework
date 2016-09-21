@@ -79,14 +79,6 @@ static inline void write_serial_number(uint64_t x, uint64_t base) {
         buf[0] = '0';
         len = 1;
     }
-    switch (base) {
-        case 8:
-            buf[len++] = 'o';
-            buf[len++] = '0';
-        case 16:
-            buf[len++] = 'x';
-            buf[len++] = '0';
-    }
     for (int i = len - 1; i > -1; --i) {
         write_serial_char(buf[i]);
     }
