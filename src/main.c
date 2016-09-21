@@ -1,3 +1,4 @@
+#include <stdarg.h>
 #include <stdint.h>
 #include "desc.h"
 #include "handlers.h"
@@ -36,7 +37,7 @@ void main(void) {
     struct desc_table_ptr ptr = {sizeof(table) - 1, (uint64_t) table};
     write_idtr(&ptr);
 
-    write_serial_string("finished IDT!\n");
+    printf("finished IDT!\n");
 
     init_serial();
     init_master_PIC();
@@ -45,7 +46,7 @@ void main(void) {
     mask_slave_PIC(0xff);
     init_PIT();
 
-    write_serial_string("finished init!\n");
+    printf("finished init!\n");
 
     qemu_gdb_hang();
 

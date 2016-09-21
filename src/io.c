@@ -1,3 +1,5 @@
+#include <stdarg.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include "io.h"
 
@@ -54,18 +56,18 @@ static inline int is_transmit_empty() {
     return in8(COM1 + 5) & 0x20;
 }
  
-void write_serial_char(char a) {
+static inline void write_serial_char(char a) {
     while (is_transmit_empty() == 0); 
     out8(COM1, a);
 }
 
-void write_serial_string(char s[]) {
+static inline void write_serial_string(char s[]) {
     for (int i = 0; s[i]; ++i) {
         write_serial_char(s[i]);
     }
 }
 
-void write_serial_number(uint32_t x, uint32_t base) {
+static inline void write_serial_number(uint64_t x, uint64_t base) {
     char buf[100];
     uint32_t len = 0;
     for (; x; ) {
@@ -77,11 +79,115 @@ void write_serial_number(uint32_t x, uint32_t base) {
         buf[0] = '0';
         len = 1;
     }
+    switch (base) {
+        case 8:
+            buf[len++] = 'o';
+            buf[len++] = '0';
+        case 16:
+            buf[len++] = 'x';
+            buf[len++] = '0';
+    }
     for (int i = len - 1; i > -1; --i) {
         write_serial_char(buf[i]);
     }
 }
 
-void printf(char format[], ...) {
-    write_serial_string(format); // dummy
+static inline void write_serial_signed_number(int64_t x, uint64_t base) {
+    if (x < 0) {
+        write_serial_char('-');
+        x *= -1;
+    }
+    write_serial_number((uint64_t) x, base);
+}
+
+// state decipher:
+// -1 -- error
+// 0 -- initial
+// 1 -- started scanning specifier
+// 2 -- read "l"
+// 3 -- read "ll"
+// 4 -- read "h"
+// 5 -- read "hh"
+int vprintf(const char format[], va_list args) {
+    int state = 0;
+    int64_t n;
+    uint64_t un;
+    for (int i = 0; format[i] && state != -1; ++i) {
+        // write_serial_char('\'');
+        // write_serial_signed_number(state, 10);
+        // write_serial_char('\'');
+        if (state == 0) {
+            if (format[i] == '%') {
+                state = 1;
+            } else {
+                write_serial_char(format[i]);
+            }
+        } else if (format[i] == 'l') {
+            if (state == 1) {
+                state = 2;
+            } else if (state == 2) {
+                state = 3;
+            } else {
+                state = -1;
+            }
+        } else if (format[i] == 'h') {
+            if (state == 1) {
+                state = 4;
+            } else if (state == 4) {
+                state = 5;
+            } else {
+                state = -1;
+            }
+        } else if (format[i] == 'd' || format[i] == 'i') {
+            if (state == 1) {
+                n = va_arg(args, int);
+            } else if (state == 2) {
+                n = va_arg(args, long int);
+            } else if (state == 3) {
+                n = va_arg(args, long long int);
+            } else if (state == 4 || state == 5) {
+                n = va_arg(args, int);
+            } else {
+                state = -1;
+                continue;
+            }
+            write_serial_signed_number(n, 10);
+            state = 0;
+        } else if (format[i] == 'u') {
+            if (state == 1 || state == 4 || state == 5) {
+                un = va_arg(args, unsigned int);
+            } else if (state == 2) {
+                un = va_arg(args, unsigned long int);
+            } else if (state == 3) {
+                un = va_arg(args, unsigned long long int);
+            } else {
+                state = -1;
+                continue;
+            }
+            write_serial_number(un, 10);
+            state = 0;
+        } else if (format[i] == 'o' || format[i] == 'x') {
+            write_serial_number(va_arg(args, uint64_t), 
+                                (format[i] == 'x' ? 16 : 8));
+            state = 0;
+        } else if (format[i] == 'c') {
+            write_serial_char(va_arg(args, unsigned int));
+            state = 0;
+        } else if (format[i] == 's') {
+            write_serial_string(va_arg(args, char*));
+            state = 0;
+        } else {
+            state = -1;
+            continue;
+        }
+    }
+    return (state ? -1 : 0);
+}
+
+int printf(const char format[], ...) {
+    va_list args;
+    va_start(args, format);
+    int res = vprintf(format, args);
+    va_end(args);
+    return res;
 }

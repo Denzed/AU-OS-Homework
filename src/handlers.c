@@ -1,3 +1,4 @@
+#include <stdarg.h>
 #include <stdint.h>
 #include "io.h"
 #include "handlers.h"
@@ -15,29 +16,21 @@ void interrupt_handler(uint64_t n, uint64_t errcode) {
     int16_t irq = n - master_PIC_first_input_IDT_position;
     if (irq < 0) {
         if (n < 32) { // is reserved
-            write_serial_string("Reserved interrupt ");
+            printf("Reserved interrupt ");
         } else {
-            write_serial_string("Software interrupt ");
+            printf("Software interrupt ");
         }
-        write_serial_number(n, 10);
-        write_serial_string(" happened with errcode ");
-        write_serial_number(errcode, 10);
-        write_serial_string("\n");
+        printf("%d happened with errcode %d\n", n, errcode);
     } else {
         if (irq == 0) {
             static int steps = 0;
             if (!steps--) {
                 steps += PIT_interrupt_div;
-                write_serial_string("Tick\n");
+                printf("Tick\n");
             }
         } else {
-            write_serial_string("Hardware interrupt ");
-            write_serial_number(n, 10);
-            write_serial_string(" happened on irq ");
-            write_serial_number(irq, 10);
-            write_serial_string(" with errcode ");
-            write_serial_number(errcode, 10);
-            write_serial_string("\n");
+            printf("Hardware interrupt %d happened on irq %d with errcode %d\n",
+                   n, irq, errcode);
         }
         send_EOI_PIC(irq);
     }

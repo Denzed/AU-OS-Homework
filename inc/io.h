@@ -20,9 +20,7 @@ void init_serial();
 char read_serial();
 
 // Sending data
-void write_serial_char(char);
-void write_serial_string(char[]);
-void write_serial_number(uint32_t, uint32_t);
-void printf(char format[], ...);
+int vprintf(const char[], va_list);
+int printf(const char[], ...);
 
 #endif /* __IOPORT_H__ */

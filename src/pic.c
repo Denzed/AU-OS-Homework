@@ -1,3 +1,4 @@
+#include <stdarg.h>
 #include <stdint.h>
 #include "desc.h"
 #include "io.h"
