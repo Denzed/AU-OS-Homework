@@ -51,3 +51,7 @@ void write_serial_number(uint32_t x, uint32_t base) {
         write_serial_char(buf[i]);
     }
 }
+
+void printf(char format[], ...) {
+    write_serial_string(format); // dummy
+}

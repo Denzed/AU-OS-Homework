@@ -5,7 +5,9 @@
 
 void interrupt_handler(uint64_t n) {
     int16_t irq, isr;
-    for (isr = pic_get_isr(), irq = (isr ? 0 : -1); isr && !(isr & 1); isr >>= 1, ++irq);
+    for (isr = pic_get_isr(), irq = (isr ? 0 : -1); isr && !(isr & 1); ++irq) {
+        isr >>= 1;
+    }
     if (irq == -1) {
         write_serial_string("Interrupt ");
         write_serial_number(n, 10);

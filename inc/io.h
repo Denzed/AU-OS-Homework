@@ -48,5 +48,6 @@ int is_transmit_empty();
 void write_serial_char(char);
 void write_serial_string(char[]);
 void write_serial_number(uint32_t, uint32_t);
+void printf(char format[], ...);
 
 #endif /* __IOPORT_H__ */

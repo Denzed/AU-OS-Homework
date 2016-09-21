@@ -19,24 +19,21 @@ static void qemu_gdb_hang(void) {
 #endif
 }
 
-struct small_IDT {
-    struct IDT_entry table[ENTRIES]; // 256 maximum
-                                     // first 32 are reserved for exceptions
-} __attribute__((packed));
-
-struct small_IDT IDT;
-
 void main(void) {
     disable_interrupts(); // just in case :)
+
+    struct IDT_entry table[ENTRIES]; // 256 maximum
+                                     // first 32 are reserved for exceptions
 
     for (int i = 0; i < ENTRIES; ++i) {
         make_entry(handler_labels[i],
                    KERNEL_CS,
                    1,
                    0xe,
-                   IDT.table + i);
+                   table + i);
     }
-    struct desc_table_ptr ptr = {sizeof(IDT) - 1, (uint64_t) &IDT};
+
+    struct desc_table_ptr ptr = {sizeof(table) - 1, (uint64_t) table};
     write_idtr(&ptr);
 
     write_serial_string("finished IDT!\n");
@@ -56,6 +53,7 @@ void main(void) {
     mask_slave_PIC(0xff);
     enable_interrupts();
 
+    gen_interrupt(29);
     gen_interrupt(33);
 
     while (1);
