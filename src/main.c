@@ -8,6 +8,8 @@
 #include <pit.h>
 #include <video.h>
 
+#define ENTRIES (32 + 2)
+
 extern uint64_t handler_labels[];
 
 static void qemu_gdb_hang(void)
@@ -21,7 +23,7 @@ static void qemu_gdb_hang(void)
 }
 
 struct small_IDT {
-    struct IDT_entry table[256]; // 256 maximum
+    struct IDT_entry table[ENTRIES]; // 256 maximum
                                 // first 32 are reserved for exceptions
 } __attribute__((packed));
 
@@ -31,19 +33,12 @@ void main(void) {
     // qemu_gdb_hang();
 
     disable_interrupts(); // just in case :)
-    cls();
-    printword("handler addresses:\n");
     for (int i = 0; i < ENTRIES; ++i) {
-        printnum(i, 10);
-        printword(": ");
-        printlnum((ull) handler_labels[i]);
-        newline();
-
         make_entry(handler_labels[i],
                    KERNEL_CS,
                    1,
                    0xe,
-                   IDT.table + 32 + i);
+                   IDT.table + i);
     }
 
     struct desc_table_ptr ptr = {sizeof(IDT) - 1, (uint64_t) &IDT};
@@ -57,16 +52,17 @@ void main(void) {
     mask_slave_PIC(0xff);
     init_PIT();
 
+    write_serial_string("finished init!\n");
+
     qemu_gdb_hang();
 
-    printword("finished init!\n");
 
-    mask_master_PIC(0xff ^ 0x1);
+    mask_master_PIC(0xff ^ 0x1 ^ 0x2); // allow interrupts from PIT (irq 0)
     mask_slave_PIC(0xff);
     enable_interrupts();
     gen_interrupt(33);
 
-	while (1) {
+    while (1) {
         // uint8_t cur_clock = in8(PIT_data_port);
         // write_serial_number(cur_clock, 10);
         // write_serial_string("\r");

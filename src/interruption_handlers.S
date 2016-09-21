@@ -1,57 +1,92 @@
 .text
-
 .code64
-.global handler_labels
-.global interrupt_handler0
-.global interrupt_handler1
+.altmacro
 
-.macro before_handler
-    pushq %rax
-    pushq %rbx
-    pushq %rcx
-    pushq %rdx
-    pushq %rbp
-    pushq %rdi
-    pushq %rsi
-    pushq %r9
-    pushq %r10
-    pushq %r11
-    pushq %r12
-    pushq %r13
-    pushq %r14
+.macro AKA_PUSHA
     pushq %r15
-    cld
+    pushq %r14
+    pushq %r13
+    pushq %r12
+    pushq %r11
+    pushq %r10
+    pushq %r9
+    pushq %r8
+    pushq %rbp
+    pushq %rsi
+    pushq %rdi
+    pushq %rdx
+    pushq %rcx
+    pushq %rbx
+    pushq %rax
 .endm
 
-.macro after_handler
-    popq %r15
-    popq %r14
-    popq %r13
-    popq %r12
-    popq %r11
-    popq %r10
-    popq %r9
-    popq %rsi
-    popq %rdi
-    popq %rbp
-    popq %rdx
-    popq %rcx
-    popq %rbx
+.macro AKA_POPA
     popq %rax
+    popq %rbx
+    popq %rcx
+    popq %rdx
+    popq %rdi
+    popq %rsi
+    popq %rbp
+    popq %r8
+    popq %r9
+    popq %r10
+    popq %r11
+    popq %r12
+    popq %r13
+    popq %r14
+    popq %r15
 .endm
 
-wrapper0:
-    before_handler
-    call interrupt_handler0
-    after_handler
+.macro FOR l r func
+    .if \r == (\l+1)
+        func \l
+    .else
+        FOR l, %((\l+\r)/2), func
+        FOR %((\l+\r)/2), r, func
+    .endif
+.endm
+
+.macro DEF_WRAPPER n
+    wrapper\n:
+        AKA_PUSHA
+        pushq $\n
+        jmp inner_wrapper
+.endm
+
+.macro DEF_WRAPPER_ERROR n
+    wrapper\n:
+        add $0x8, %rsp      // remove the errcode
+        AKA_PUSHA
+        pushq $\n
+        jmp inner_wrapper
+.endm
+
+.macro LIST_WRAPPER n
+    .quad wrapper\n
+.endm
+
+.global handler_labels
+.extern interrupt_handler
+
+inner_wrapper:
+    popq %rdi                // load n to first argument
+    cld
+    call interrupt_handler
+    AKA_POPA                 // restore state
     iretq
 
-wrapper1:
-    before_handler
-    call interrupt_handler1
-    after_handler
-    iretq
+#define ENTRIES 2
+
+FOR 0, 8, DEF_WRAPPER
+FOR 8, 9, DEF_WRAPPER_ERROR
+FOR 9, 10, DEF_WRAPPER
+FOR 10, 15, DEF_WRAPPER_ERROR
+FOR 15, 17, DEF_WRAPPER
+FOR 17, 18, DEF_WRAPPER_ERROR
+FOR 18, 30, DEF_WRAPPER
+FOR 30, 31, DEF_WRAPPER_ERROR
+FOR 31, 32+ENTRIES, DEF_WRAPPER
 
 handler_labels:
-    .quad wrapper0
-    .quad wrapper1
+    FOR 0, 32+ENTRIES, LIST_WRAPPER
