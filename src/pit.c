@@ -1,5 +1,4 @@
-#include <stdarg.h>
-#include <stdint.h>
+#include "general.h"
 #include "io.h"
 #include "pit.h"
 

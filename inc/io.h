@@ -22,5 +22,7 @@ char read_serial();
 // Sending data
 int vprintf(const char[], va_list);
 int printf(const char[], ...);
+int vsnprintf(char *, size_t, const char[], va_list);
+int snprintf(char *, size_t, const char[], ...);
 
 #endif /* __IOPORT_H__ */

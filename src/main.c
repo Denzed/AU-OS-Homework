@@ -1,5 +1,4 @@
-#include <stdarg.h>
-#include <stdint.h>
+#include "general.h"
 #include "desc.h"
 #include "handlers.h"
 #include "io.h"
