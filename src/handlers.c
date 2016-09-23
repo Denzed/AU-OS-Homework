@@ -1,7 +1,9 @@
 #include "general.h"
 #include "io.h"
 #include "handlers.h"
+#include "keyboard.h"
 #include "pic.h"
+#include "video.h"
 
 void enable_interrupts() {
     __asm__ volatile ("sti");
@@ -30,6 +32,10 @@ void interrupt_handler(uint64_t n, uint64_t errcode) {
                 steps += PIT_interrupt_div;
                 printf("Tick\n");
             }
+        } else if (irq == 1) {
+            video_printf("%x ", get_scancode());
+            printf("Keyboard interrupt %d happened on irq %d with errcode %d\n",
+                   n, irq, errcode);
         } else {
             printf("Hardware interrupt %d happened on irq %d with errcode %d\n",
                    n, irq, errcode);

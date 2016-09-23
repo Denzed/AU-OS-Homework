@@ -1,5 +1,6 @@
 #include "general.h"
 #include "io.h"
+#include "video.h"
 
 void out8(unsigned short port, uint8_t data) {
     __asm__ volatile ("outb %0, %1" : : "a"(data), "d"(port));
@@ -203,6 +204,18 @@ int snprintf(char *str, size_t n, const char format[], ...) {
     va_list args;
     va_start(args, format);
     int res = vsnprintf(str, n, format, args);
+    va_end(args);
+    return res;
+}
+
+int video_vprintf(const char format[], va_list args) {
+    return _vprintf(&write_video_char, format, args);
+}
+
+int video_printf(const char format[], ...) {
+    va_list args;
+    va_start(args, format);
+    int res = video_vprintf(format, args);
     va_end(args);
     return res;
 }

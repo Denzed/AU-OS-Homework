@@ -49,7 +49,7 @@ void main(void) {
 
     qemu_gdb_hang();
 
-    mask_master_PIC(0xff ^ 0x1); // allow interrupts from PIT (irq 0)
+    mask_master_PIC(0xff ^ 0x3); // allow interrupts from irq 0, 1
     mask_slave_PIC(0xff);
     enable_interrupts();
 
