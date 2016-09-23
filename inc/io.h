@@ -20,9 +20,17 @@ void init_serial();
 char read_serial();
 
 // Sending data
+
+struct additional_info {
+    char *destination;
+    int64_t current_position, limit;
+};
+
 int vprintf(const char[], va_list);
 int printf(const char[], ...);
 int vsnprintf(char *, size_t, const char[], va_list);
 int snprintf(char *, size_t, const char[], ...);
+int video_vprintf(const char[], va_list);
+int video_printf(const char [], ...);
 
 #endif /* __IOPORT_H__ */

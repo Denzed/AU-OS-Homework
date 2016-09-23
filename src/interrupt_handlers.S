@@ -70,8 +70,9 @@
 
 inner_wrapper:
     AKA_PUSHA
-    movq 0x78(%rsp), %rdi    // load n to first argument
-    movq 0x7c(%rsp), %rsi    // load errcode to second argument
+    movq %rsp, %rdi             // stack frame pointer to first argument
+    # movq 0x78(%rsp), %rdi    // load n to first argument
+    # movq 0x7c(%rsp), %rsi    // load errcode to second argument
     cld
     call interrupt_handler
     AKA_POPA                  // restore state

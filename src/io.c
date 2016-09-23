@@ -55,27 +55,27 @@ static inline int is_transmit_empty() {
     return in8(COM1 + 5) & 0x20;
 }
  
-static inline void write_serial_char(char c) {
+static inline int write_serial_char(struct additional_info *info, char c) {
+    ++info; // actually we don't need this information
     while (is_transmit_empty() == 0); 
     out8(COM1, c);
+    return 1;
 }
 
-static char *s;
-static int pos, limit;
-
-static inline void write_sn_char(char c) {
-    if (pos < limit) {
-        s[pos++] = c;
+static inline int write_string(struct additional_info *info, 
+                               int (*write_char)(struct additional_info *, char), 
+                               char s[]) {
+    int i = 0;
+    for (; s[i]; ++i) {
+        write_char(info, s[i]);
     }
+    return i;
 }
 
-static inline void write_string(void (*write_char)(char), char s[]) {
-    for (int i = 0; s[i]; ++i) {
-        write_char(s[i]);
-    }
-}
-
-static inline void write_number(void (*write_char)(char), uint64_t x, uint64_t base) {
+static inline int write_number(struct additional_info *info, 
+                               int (*write_char)(struct additional_info *, char), 
+                               uint64_t x, 
+                               uint64_t base) {
     char buf[100];
     uint32_t len = 0;
     for (; x; ) {
@@ -88,16 +88,21 @@ static inline void write_number(void (*write_char)(char), uint64_t x, uint64_t b
         len = 1;
     }
     for (int i = len - 1; i > -1; --i) {
-        write_char(buf[i]);
+        write_char(info, buf[i]);
     }
+    return len;
 }
 
-static inline void write_signed_number(void (*write_char)(char), int64_t x, uint64_t base) {
+static inline int write_signed_number(struct additional_info *info, 
+                                      int (*write_char)(struct additional_info *, char), 
+                                      int64_t x, 
+                                      uint64_t base) {
+    int chars_written = (x < 0);
     if (x < 0) {
-        write_char('-');
+        write_char(info, '-');
         x *= -1;
     }
-    write_number(write_char, (uint64_t) x, base);
+    return chars_written + write_number(info, write_char, (uint64_t) x, base);
 }
 
 // state decipher:
@@ -108,8 +113,11 @@ static inline void write_signed_number(void (*write_char)(char), int64_t x, uint
 // 3 -- read "ll"
 // 4 -- read "h"
 // 5 -- read "hh"
-static inline int _vprintf(void (*write_char)(char), const char format[], va_list args) {
-    int state = 0;
+static inline int _vprintf(struct additional_info *info, 
+                           int (*write_char)(struct additional_info *, char), 
+                           const char format[], 
+                           va_list args) {
+    int state = 0, chars_written = 0;
     int64_t n;
     uint64_t un;
     for (int i = 0; format[i] && state != -1; ++i) {
@@ -117,7 +125,7 @@ static inline int _vprintf(void (*write_char)(char), const char format[], va_lis
             if (format[i] == '%') {
                 state = 1;
             } else {
-                write_char(format[i]);
+                chars_written += write_char(info, format[i]);
             }
         } else if (format[i] == 'l') {
             if (state == 1) {
@@ -148,7 +156,7 @@ static inline int _vprintf(void (*write_char)(char), const char format[], va_lis
                 state = -1;
                 continue;
             }
-            write_signed_number(write_char, n, 10);
+            chars_written += write_signed_number(info, write_char, n, 10);
             state = 0;
         } else if (format[i] == 'u') {
             if (state == 1 || state == 4 || state == 5) {
@@ -161,28 +169,33 @@ static inline int _vprintf(void (*write_char)(char), const char format[], va_lis
                 state = -1;
                 continue;
             }
-            write_number(write_char, un, 10);
+            chars_written += write_number(info, write_char, un, 10);
             state = 0;
         } else if (format[i] == 'o' || format[i] == 'x') {
-            write_number(write_char, va_arg(args, uint64_t), 
-                         (format[i] == 'x' ? 16 : 8));
+            chars_written += write_number(info, 
+                                          write_char, 
+                                          va_arg(args, uint64_t), 
+                                          (format[i] == 'x' ? 16 : 8));
             state = 0;
         } else if (format[i] == 'c') {
-            write_char(va_arg(args, unsigned int));
+            chars_written += write_char(info, 
+                                        va_arg(args, unsigned int));
             state = 0;
         } else if (format[i] == 's') {
-            write_string(write_char, va_arg(args, char*));
+            chars_written += write_string(info, 
+                                          write_char, 
+                                          va_arg(args, char*));
             state = 0;
         } else {
             state = -1;
             continue;
         }
     }
-    return (state ? -1 : 0);
+    return (state ? -1 : chars_written);
 }
 
 int vprintf(const char format[], va_list args) {
-    return _vprintf(&write_serial_char, format, args);
+    return _vprintf(NULL, &write_serial_char, format, args);
 }
 
 int printf(const char format[], ...) {
@@ -193,11 +206,21 @@ int printf(const char format[], ...) {
     return res;
 }
 
+static inline int write_sn_char(struct additional_info *info, char c) {
+    if (info->current_position < info->limit) { 
+        info->destination[info->current_position++] = c;
+    }
+    return 1;
+}
+
 int vsnprintf(char *str, size_t n, const char format[], va_list args) {
-    s = str;
-    limit = n;
-    pos = 0;
-    return _vprintf(&write_sn_char, format, args);
+    if (str == NULL) {
+        return -1;
+    }
+    struct additional_info info = {str, 0, n};
+    int res = _vprintf(&info, &write_sn_char, format, args);
+    write_sn_char(&info, '\0');
+    return res;
 }
 
 int snprintf(char *str, size_t n, const char format[], ...) {
@@ -209,7 +232,7 @@ int snprintf(char *str, size_t n, const char format[], ...) {
 }
 
 int video_vprintf(const char format[], va_list args) {
-    return _vprintf(&write_video_char, format, args);
+    return _vprintf(NULL, &write_video_char, format, args);
 }
 
 int video_printf(const char format[], ...) {
