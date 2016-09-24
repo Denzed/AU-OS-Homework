@@ -232,6 +232,8 @@ start64:
 	jmp 1b
 
 
+
+.global bootstrap_stack_top
 	.bss
 	.align PAGE_SIZE
 	.space PAGE_SIZE

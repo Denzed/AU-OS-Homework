@@ -1,4 +1,5 @@
 #include "general.h"
+#include "debug.h"
 #include "desc.h"
 #include "handlers.h"
 #include "io.h"
@@ -7,8 +8,6 @@
 #include "pit.h"
 
 #define ENTRIES (32 + 2)
-
-extern uint64_t handler_labels[];
 
 static void qemu_gdb_hang(void) {
 #ifdef DEBUG
@@ -20,6 +19,9 @@ static void qemu_gdb_hang(void) {
 }
 
 void main(void) {
+    printf("Stack begins at %x\n", GLOBAL_STACK_BOTTOM);
+    printf("Main:\n");
+    backtrace();
     disable_interrupts(); // just in case :)
 
     struct IDT_entry table[ENTRIES]; // 256 maximum
