@@ -113,6 +113,7 @@ static inline int write_signed_number(struct additional_info *info,
 // 3 -- read "ll"
 // 4 -- read "h"
 // 5 -- read "hh"
+// 6 -- read "#"
 static inline int _vprintf(struct additional_info *info, 
                            int (*write_char)(struct additional_info *, char), 
                            const char format[], 
@@ -171,7 +172,21 @@ static inline int _vprintf(struct additional_info *info,
             }
             chars_written += write_number(info, write_char, un, 10);
             state = 0;
+        } else if (format[i] == '#') {
+            if (state == 1) {
+                state = 6;
+            } else {
+                state = -1;
+                continue;
+            }
         } else if (format[i] == 'o' || format[i] == 'x') {
+            if (state != 1 && state != 6) {
+                state = -1;
+                continue;
+            }
+            chars_written += write_string(info, 
+                                          write_char, 
+                                          (format[i] == 'x' ? "0x" : "0o"));
             chars_written += write_number(info, 
                                           write_char, 
                                           va_arg(args, uint64_t), 

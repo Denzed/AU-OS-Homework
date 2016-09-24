@@ -36,7 +36,7 @@ void main(void) {
     struct desc_table_ptr ptr = {sizeof(table) - 1, (uint64_t) table};
     write_idtr(&ptr);
 
-    printf("finished IDT!\n");
+    printf("Finished IDT!\n");
 
     init_serial();
     init_master_PIC();
@@ -45,11 +45,11 @@ void main(void) {
     mask_slave_PIC(0xff);
     init_PIT();
 
-    printf("finished init!\n");
+    printf("Finished init!\n");
 
     qemu_gdb_hang();
 
-    mask_master_PIC(0xff ^ 0x0); // allow irq 0
+    mask_master_PIC(0xff ^ 0x1); // allow irq 0
     mask_slave_PIC(0xff);
     enable_interrupts();
 
