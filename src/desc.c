@@ -1,4 +1,3 @@
-#include <stdint.h>
 #include "desc.h"
 
 void read_idtr(struct desc_table_ptr *ptr) {

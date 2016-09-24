@@ -3,6 +3,7 @@ LD ?= ld
 
 CFLAGS := -g -m64 -mno-red-zone -mno-mmx -mno-sse -mno-sse2 -ffreestanding \
 	-mcmodel=kernel -Wall -Wextra -Werror -pedantic -std=c99 \
+	-fno-omit-frame-pointer \
 	-Wframe-larger-than=1024 -Wstack-usage=1024 \
 	-Wno-unknown-warning-option $(if $(DEBUG),-DDEBUG)
 LFLAGS := -nostdlib -z max-page-size=0x1000
@@ -30,6 +31,16 @@ $(S_OBJECTS): %.o: %.S
 
 $(C_OBJECTS): %.o: %.c
 	$(CC) $(CFLAGS) -I$(INC) -g -MMD -c $< -o $@
+
+run: clean kernel
+ifeq ($(DEBUG), 1)
+	qemu-system-x86_64 -kernel kernel -s -serial stdio &
+	sleep 1
+	gdb -x gdb_initial_commands kernel
+	killall qemu-system-x86_64
+else 
+	qemu-system-x86_64 -kernel kernel  -serial stdio
+endif
 
 -include $(DEP)
 

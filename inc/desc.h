@@ -1,6 +1,8 @@
 #ifndef __DESC_H__
 #define __DESC_H__
 
+#include <stdint.h>
+
 struct IDT_entry {                  // Interrupt Descriptor Table entry
     uint16_t offset15_0;            
     uint16_t segment_selector; 

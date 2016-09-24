@@ -1,5 +1,5 @@
-#ifndef __IOPORT_H__
-#define __IOPORT_H__
+#ifndef __IO_H__
+#define __IO_H__
 
 // direct interaction with desired port
 void out8(unsigned short, uint8_t);
@@ -33,4 +33,4 @@ int snprintf(char *, size_t, const char[], ...);
 int video_vprintf(const char[], va_list);
 int video_printf(const char [], ...);
 
-#endif /* __IOPORT_H__ */
+#endif /* __IO_H__ */

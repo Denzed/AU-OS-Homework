@@ -10,7 +10,7 @@ char get_scancode() {
     char c = 0;
     do {
         if (in8(KEYBOARD_OUT) != c) {
-            c = in8(0x60);
+            c = in8(KEYBOARD_OUT);
             if (c > 0) {
                 return c;
             }
