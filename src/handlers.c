@@ -26,6 +26,7 @@ void interrupt_handler(struct stack_frame* sf) {
             printf("Software interrupt ");
         }
         printf("%d happened with errcode %d\n", sf->n, sf->errcode);
+        backtrace();
     } else {
         if (irq == 0) {
             static int steps = 0;
