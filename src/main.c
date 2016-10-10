@@ -7,8 +7,6 @@
 #include "pic.h"
 #include "pit.h"
 
-#define ENTRIES (32 + 2)
-
 static void qemu_gdb_hang(void) {
 #ifdef DEBUG
     static volatile int wait = 1;
@@ -19,6 +17,12 @@ static void qemu_gdb_hang(void) {
 }
 
 void main(void) {
+    qemu_gdb_hang();
+
+    setup_memory_map(false);
+    output_memory_map(mmap, mmap_actual_size);
+
+/*
     printf("Stack begins at %x\n", GLOBAL_STACK_BOTTOM);
     printf("Main:\n");
     backtrace();
@@ -49,13 +53,12 @@ void main(void) {
 
     printf("Finished init!\n");
 
-    qemu_gdb_hang();
-
     mask_master_PIC(0xff ^ 0x1); // allow irq 0
     mask_slave_PIC(0xff);
     enable_interrupts();
 
     gen_interrupt(29);
+*/
 
     while (1);
 }
