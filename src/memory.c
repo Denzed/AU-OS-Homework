@@ -88,18 +88,27 @@ void setup_memory_map(bool debug) {
         mmap_entry_t entry = *(mmap_entry_t *) mmap_ptr;
         // handle overlaps with kernel sector
         uint32_t entry_end = entry.base_addr + entry.length;
-        // left end
-        if (kernel_begin < entry.base_addr && entry.base_addr < kernel_end) {
-            entry.base_addr = kernel_end;
-        }
-        // right end
-        if (kernel_begin < entry_end && entry_end < kernel_end) {
-            entry_end = kernel_begin;
-        }
-        // if everything is okay -- add to mmap
-        if (entry_end > entry.base_addr) {
-            entry.length = entry_end - entry.base_addr;
+        // kernel region splits current into two parts
+        if (entry.base_addr < kernel_begin && kernel_begin < entry_end) {
+            entry.length = kernel_begin - entry.base_addr;
             mmap[mmap_actual_size++] = entry;
+            entry.length = entry_end - kernel_end;
+            entry.base_addr = kernel_end;
+            mmap[mmap_actual_size++] = entry;
+        } else {
+            // left end
+            if (kernel_begin < entry.base_addr && entry.base_addr < kernel_end) {
+                entry.base_addr = kernel_end;
+            }
+            // right end
+            if (kernel_begin < entry_end && entry_end < kernel_end) {
+                entry_end = kernel_begin;
+            }
+            // if everything is okay -- add to mmap
+            if (entry_end > entry.base_addr) {
+                entry.length = entry_end - entry.base_addr;
+                mmap[mmap_actual_size++] = entry;
+            }
         }
         mmap_ptr += sizeof(entry.size) + entry.size;
         if (mmap_actual_size > MEMORY_MAP_MAXIMUM_SIZE) {
@@ -117,71 +126,3 @@ void output_memory_map(mmap_entry_t mmap[], uint32_t mmap_size) {
                mmap[cur].type);
     }
 }
-
-struct buddy_node;
-typedef struct buddy_node buddy_node_t;
-typedef buddy_node_t * buddy_node_p;
-
-struct buddy_node {
-    uint8_t state;
-    buddy_node_p left, right;
-} __attribute__((packed));
-
-static allocatable_begin = 0;
-static uint64_t buddy_nodes = 0;
-static buddy_node_t buddy_nodes_storage[] = 0;
-static buddy_node_p root = 0;
-
-static inline buddy_node_t make_buddy(uint8_t _state, 
-                                      buddy_node_p _left, 
-                                      buddy_node_p _right) {
-    buddy_node_t res;
-    res.state = _state;
-    res.left = _left;
-    res.right = _right;
-    return res;
-}
-
-static buddy_node_p build_buddy(uint64_t l, uint64_t r) {
-    if (l >= buddy_nodes || l >= r) {
-        return (buddy_node_p) 0;
-    }
-    buddy_node_p left = build_buddy(l, (l + r) >> 1);
-    buddy_node_p right = build_buddy((l + r) >> 1, r);
-    uint8_t state = (l + 1 == r ? 0 : (left == (buddy_node_p) 0) + 
-                                      ((right == (buddy_node_p) 0) << 1));
-    buddy_nodes_storage[buddy_nodes] = make_buddy(state, left, right);
-    return buddy_nodes_storage + (buddy_nodes++);
-}
-
-static uint64_t _allocate_buddy(buddy_node_p p, 
-                                uint64_t l, 
-                                uint64_t r, 
-                                uint64_t len) {
-    if (r - l < len) {
-        return 0;
-    }
-    uint64_t res = 0;
-    if (!(state & 1) && (res = _allocate_buddy(p->left, l, (l + r) >> 1, len))) {
-        state |= 1;
-        return res;
-    }
-    if (!((state >> 1) & 1) && 
-        (res = _allocate_buddy(p->right, (l + r) >> 1, r, len))) {
-        state |= 1 << 1;
-        return res;
-    }
-    state = 3;
-    return allocatable_begin + l * PAGE_SIZE;
-}
-
-inline uint64_t allocate_buddy(uint64_t len) {
-    return _allocate_buddy(root, 0, buddy_nodes, len);
-}
-
-// TODO
-// static inline void setup_buddy() {
-
-//     root = build_buddy(0, )
-// }
-
