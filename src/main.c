@@ -25,7 +25,7 @@ void main(void) {
     output_memory_map(mmap, mmap_actual_size);
 // setup page allocation
     setup_buddy_allocators();
-/*  
+  
 // page allocator test
     uint64_t tmp[2];
     printf("%#x\n", tmp[0] = allocate_buddy(2));
@@ -34,7 +34,7 @@ void main(void) {
     printf("%#x\n", tmp[0] = allocate_buddy(1));
     free_buddy(tmp[1]);
     printf("%#x\n", tmp[1] = allocate_buddy(1));
-*/
+
 // backtracing test
 /*
     printf("Stack begins at %x\n", GLOBAL_STACK_BOTTOM);

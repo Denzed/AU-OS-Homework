@@ -9,122 +9,49 @@ typedef struct buddy_node buddy_node_t;
 typedef buddy_node_t * buddy_node_p;
 
 struct buddy_node {
-    uint8_t state; /* 0 -- does not exist, 
-                      1 -- free,
-                      2 -- split into buddies,
-                      3 -- the node itself is used */
-    buddy_node_p left, right;
+    uint64_t order;
+    bool used;
+    buddy_node_p prev, next;
 } __attribute__((packed));
 
-// just some reasonable constant
-#define BUDDY_MAXIMUM_NODES (1 << 20)
-static uint64_t buddy_node_count = 0;
-static buddy_node_t buddy_nodes[BUDDY_MAXIMUM_NODES];
-
-static inline buddy_node_p make_buddy_node(uint8_t _state, 
-                                      buddy_node_p _left, 
-                                      buddy_node_p _right) {
-    buddy_nodes[buddy_node_count].state = _state;
-    buddy_nodes[buddy_node_count].left = _left;
-    buddy_nodes[buddy_node_count].right = _right;
-    return &buddy_nodes[buddy_node_count++];
+static inline void make_node(buddy_node_p p,
+                             uint64_t order,
+                             bool used,
+                             buddy_node_p prev, 
+                             buddy_node_p next) {
+    p->used = used;
+    p->order = order;
+    p->prev = prev;
+    p->next = next;
 }
 
-static inline uint8_t get_state(buddy_node_p p) {
-    return (p ? p->state : 0);
-}
-
-static inline void change_state(buddy_node_p p, uint8_t state) {
-    if (p) {
-        p->state = state;
+static inline void insert_node(buddy_node_p node, 
+                               buddy_node_p head) {
+    if (head) {
+        node->prev = head->prev;
+        head->prev = node;
+        node->next = head;
     }
 }
 
-// build a full buddy allocator tree 
-static buddy_node_p _build_buddy(uint64_t l, uint64_t r) {
-    // printf("%lld %lld\n", l, r);
-    if (l >= r) {
-        return NULL;
+static inline void erase_node(buddy_node_p node) {
+    if (node->prev) {
+        node->prev->next = node->next;
     }
-    buddy_node_p left = NULL, right = NULL;
-    if (l + 1 < r) {
-        left = _build_buddy(l, (l + r) >> 1);
-        right = _build_buddy((l + r) >> 1, r);
+    if (node->next) {
+        node->next->prev = node->prev;
     }
-    return make_buddy_node(0, left, right);
 }
 
-static buddy_node_p build_buddy(uint64_t l, uint64_t r) {
-    buddy_node_p res = _build_buddy(l, r);
-    change_state(res, 1);
-    return res;    
-}
-
-// returns is 0 if we don't succeed, page number otherwise (starting from 1)
-static uint64_t _allocate_buddy(buddy_node_p p, 
-                                uint64_t l, 
-                                uint64_t r, 
-                                uint64_t len) {
-    /*printf("%lld, %lld: %lld, %lld, %lld\n", l, r, get_state(p), 
-                                       get_state(p->left), 
-                                       get_state(p->right));*/
-    if (l + len > r || get_state(p) == 0 || get_state(p) == 3) {
-        return 0;
-    }
-    if (get_state(p) == 1) {
-        if (p->right) {
-            change_state(p, 2);
-            change_state(p->left, 1);
-            change_state(p->right, 1);
-            uint64_t res = _allocate_buddy(p, l, r, len);
-            if (res) {
-                return res;
-            }
-        }
-        change_state(p, 3);
-        change_state(p->left, 0);
-        change_state(p->right, 0);
-        return l;
-    } else if (get_state(p) == 2) {
-        uint64_t res = 0;
-        if ((res = _allocate_buddy(p->left, l, (l + r) >> 1, len)) ||
-            (res = _allocate_buddy(p->right, (l + r) >> 1, r, len))) {
-            return res;
-        }
-    }
-    return 0;
-}
-
-// returns 0 on success, 1 otherwise
-static uint64_t _free_buddy(buddy_node_p p, 
-                                uint64_t l, 
-                                uint64_t r, 
-                                uint64_t i) {
-    if (l > i || !p) {
-        return 1;
-    }
-    if (l == i && get_state(p) == 3) {
-        change_state(p, 1);
-        return 0;
-    }
-    if (get_state(p) == 2 &&
-            (!_free_buddy(p->left, l, (l + r) >> 1, i) ||
-             !_free_buddy(p->right, (l + r) >> 1, r, i))) {
-        if (get_state(p->left) == 1 && get_state(p->right) == 1) {
-            change_state(p, 1);
-            change_state(p->left, 0);
-            change_state(p->right, 0);
-        }
-        return 0;
-    }
-    return 1;
+static inline void set_state(buddy_node_p p, bool used) {
+    p->used = used;
 }
 
 /* as memory map can have several free segments we have to be able to create 
    more than one allocator */
 struct buddy_allocator {
-    uint64_t begin, page_count;
-    buddy_node_p root;
+    uint64_t begin, page_count, maximum_order;
+    buddy_node_p *lists, storage;
 } __attribute__((packed));
 
 typedef struct buddy_allocator buddy_allocator_t;
@@ -145,6 +72,33 @@ static inline uint64_t get_base_from_page(buddy_allocator_p p,
     return p->begin + PAGE_SIZE * (page - 1);
 }
 
+static inline bool is_enough(buddy_allocator_p p) {
+    uint64_t current_end = p->maximum_order * sizeof(buddy_node_p) + 
+        (1 << p->maximum_order) * (sizeof(buddy_node_t) + PAGE_SIZE);
+    return current_end + (current_end % PAGE_SIZE ? 
+                          PAGE_SIZE - current_end % PAGE_SIZE:
+                          0) <= p->page_count * PAGE_SIZE;
+}
+
+void build_buddy(buddy_allocator_p p) {
+    for (p->maximum_order = 0; is_enough(p); ++p->maximum_order);
+    p->maximum_order -= (p->maximum_order > 0);
+    p->page_count = 1 << p->maximum_order;
+    p->storage = (buddy_node_p) p->begin + p->maximum_order + 1;
+    make_node(p->storage, p->maximum_order, 0, NULL, NULL);
+    p->lists = (buddy_node_p *) p->begin;
+    for (uint64_t order = 0; order < p->maximum_order; ++order) {
+        p->lists[order] = NULL;
+    }
+    p->lists[p->maximum_order] = p->storage;
+    p->begin += p->maximum_order * sizeof(buddy_node_p) + 
+          (1 << p->maximum_order) * sizeof(buddy_node_t);
+    // align
+    if (p->begin % PAGE_SIZE) {
+        p->begin += PAGE_SIZE - p->begin % PAGE_SIZE;
+    }
+}
+
 /* iterate the memory map and build a buddy allocator on every free segment
    (those with type = 1); segments are alinged to PAGE_SIZE multiples */
 void setup_buddy_allocators() {
@@ -159,20 +113,60 @@ void setup_buddy_allocators() {
         if (new_buddy->begin % PAGE_SIZE) {
             new_buddy->begin += PAGE_SIZE - new_buddy->begin % PAGE_SIZE;
         }
-        if (new_buddy->begin >= entry->base_addr + entry->length) {
-            /*printf("Sas: %lld > %lld\n", new_buddy->begin, 
-                                         entry->base_addr + entry->length);*/
+        uint64_t buddy_end = entry->base_addr + entry->length;
+        // aligned
+        buddy_end -= buddy_end % PAGE_SIZE;
+        if (new_buddy->begin >= buddy_end) {
+            // printf("Sas: %lld > %lld\n", new_buddy->begin, 
+            //                              entry->base_addr + entry->length);
             --buddy_allocator_count;
             continue;
         }
-        new_buddy->page_count = (entry->base_addr + 
-                                entry->length - 
-                                new_buddy->begin) / PAGE_SIZE;
+        new_buddy->page_count = (buddy_end - new_buddy->begin) / PAGE_SIZE;
+        build_buddy(new_buddy);
+        printf("%lld ", new_buddy->page_count);
         total_pages += new_buddy->page_count;
-        new_buddy->root = build_buddy(1, new_buddy->page_count + 1);
-        // change_state(new_buddy->root, 1);
     }
-    printf("Total pages available for use: %lld\n", total_pages);
+    printf("sums up to %lld pages available for use\n", total_pages);
+}
+
+static inline void print_list(buddy_node_p cur) {
+    printf("%#x%s", cur, (cur == NULL ? "\n" : " -> "));
+    if (cur) {
+        print_list(cur->next);
+    }
+}
+
+static inline uint64_t _allocate_buddy(buddy_allocator_p p, uint64_t order, uint64_t len) {
+    if (order > p->maximum_order) {
+        return 0;
+    }
+    uint64_t cur_len = (1ULL << order);
+    if (cur_len < len || p->lists[order] == NULL) {
+        /*if (cur_len < len) {
+            printf("%lld is not enough, trying order %lld\n", cur_len, order + 1);
+        } else {
+            printf("List is empty at order %lld, trying order %lld\n", order, order + 1);
+        }*/
+        return _allocate_buddy(p, order + 1, len);
+    }
+    uint64_t cur = p->lists[order] - p->storage;
+    // printf("%lld\n", (p->lists[order] - p->storage));
+    // print_list(p->lists[order]);
+    p->lists[order] = p->storage[cur].next;
+    // print_list(p->lists[order]);
+    if (cur_len >= 2 * len) {
+        uint64_t cur_buddy = cur ^ (1 << (order - 1));
+        // printf("Splitting %lld into %lld, %lld at order %lld\n", cur, cur, cur_buddy, order);
+        make_node(&p->storage[cur], order - 1, 0, NULL, &p->storage[cur_buddy]);
+        make_node(&p->storage[cur_buddy], order - 1, 0, &p->storage[cur], p->lists[order - 1]);
+        p->lists[order - 1] = &p->storage[cur];
+
+        return _allocate_buddy(p, order - 1, len);
+    }
+    // printf("%lld at order %lld is okay\n", cur, order);
+    make_node(&p->storage[cur], order, true, NULL, NULL);
+    return cur + 1;
 }
 
 /* go through all allocators and try to allocate needed amount of pages;
@@ -182,14 +176,43 @@ uint64_t allocate_buddy(uint64_t len) {
     for (uint64_t i = 0; i < buddy_allocator_count; ++i) {
         buddy_allocator_t *current_allocator = &buddy_allocators[i];
         // printf("Trying %d\n", i);
-        uint64_t res = _allocate_buddy(current_allocator->root, 
-                                       1, 
-                                       current_allocator->page_count + 1, 
-                                       len);
+        uint64_t res = _allocate_buddy(current_allocator, 0, len);
         if (res) {
             return get_base_from_page(current_allocator, res);
         }
     }
+    return 0;
+}
+
+uint64_t _free_buddy(buddy_allocator_p p, uint64_t cur) {
+    if (!p->storage[--cur].used) {
+        return 1;
+    }
+    uint64_t order = p->storage[cur].order;
+    // printf("Freeing %lld of order %lld\n", cur, order);
+    uint64_t cur_buddy = cur ^ (1 << order);
+    // printf("Its buddy %lld has state %lld and order %lld\n", cur_buddy, p->storage[cur_buddy].used, p->storage[cur_buddy].order);
+    if (!p->storage[cur_buddy].used && p->storage[cur_buddy].order == order) {
+        // print_list(p->lists[order]);
+        // printf("Merging with a buddy\nNow ");
+        erase_node(&p->storage[cur_buddy]);
+        if (&p->storage[cur_buddy] == p->lists[order]) {
+            p->lists[order] = p->lists[order]->next;
+        }
+        ++p->storage[cur].order;
+        if (cur_buddy < cur) {
+            set_state(&p->storage[cur], false);
+            set_state(&p->storage[cur_buddy], true);
+            cur = cur_buddy;
+        }
+        // print_list(p->lists[order]);
+        return _free_buddy(p, cur + 1);
+    }
+    // print_list(p->lists[order]);
+    set_state(&p->storage[cur], false);
+    insert_node(&p->storage[cur], p->lists[order]);
+    p->lists[order] = &p->storage[cur];
+    // print_list(p->lists[order]);
     return 0;
 }
 
@@ -206,10 +229,7 @@ uint64_t free_buddy(uint64_t base) {
             base < current_allocator->begin + 
                    current_allocator->page_count * PAGE_SIZE) {
             uint64_t page = get_page_from_base(current_allocator, base);
-            uint64_t res = _free_buddy(current_allocator->root, 
-                                       1, 
-                                       current_allocator->page_count + 1, 
-                                       page);
+            uint64_t res = _free_buddy(current_allocator, page);
             return res;
         }
     }
