@@ -72,27 +72,46 @@ static inline uint64_t get_base_from_page(buddy_allocator_p p,
     return p->begin + PAGE_SIZE * (page - 1);
 }
 
-static inline bool is_enough(buddy_allocator_p p) {
-    uint64_t current_end = p->maximum_order * sizeof(buddy_node_p) + 
-        (1 << p->maximum_order) * (sizeof(buddy_node_t) + PAGE_SIZE);
+static inline uint64_t discrete_log2(uint64_t x) {
+    uint64_t res = 0;
+    for (; x > 1; x >>= 1, ++res);
+    return res;
+}
+
+static inline bool is_enough(buddy_allocator_p p, uint64_t k) {
+    uint64_t current_end = discrete_log2(k) * sizeof(buddy_node_p) + 
+        k * (sizeof(buddy_node_t) + PAGE_SIZE);
     return current_end + (current_end % PAGE_SIZE ? 
                           PAGE_SIZE - current_end % PAGE_SIZE:
                           0) <= p->page_count * PAGE_SIZE;
 }
 
-void build_buddy(buddy_allocator_p p) {
-    for (p->maximum_order = 0; is_enough(p); ++p->maximum_order);
-    p->maximum_order -= (p->maximum_order > 0);
-    p->page_count = 1 << p->maximum_order;
-    p->storage = (buddy_node_p) p->begin + p->maximum_order + 1;
-    make_node(p->storage, p->maximum_order, 0, NULL, NULL);
-    p->lists = (buddy_node_p *) p->begin;
-    for (uint64_t order = 0; order < p->maximum_order; ++order) {
-        p->lists[order] = NULL;
+static inline void build_buddy(buddy_allocator_p p) {
+    // binary search the maximum size
+    uint64_t l = 0;
+    for (uint64_t r = p->page_count, m; l + 1 < r; ) {
+        m = (l + r) >> 1;
+        if (is_enough(p, m)) {
+            l = m;
+        } else {
+            r = m;
+        }
     }
-    p->lists[p->maximum_order] = p->storage;
+    p->maximum_order = discrete_log2(l);
+    p->page_count = l;
+    p->storage = (buddy_node_p) p->begin + p->maximum_order + 1;
+    p->lists = (buddy_node_p *) p->begin;
+    for (int64_t order = p->maximum_order, offset = 0; order > -1; --order) {
+        if (p->page_count & (1 << order)) {
+            make_node(&p->storage[offset], order, 0, NULL, NULL);
+            p->lists[order] = &p->storage[offset];
+            offset += (1 << order);
+        } else {
+            p->lists[order] = NULL;
+        }
+    }
     p->begin += p->maximum_order * sizeof(buddy_node_p) + 
-          (1 << p->maximum_order) * sizeof(buddy_node_t);
+                p->page_count * sizeof(buddy_node_t);
     // align
     if (p->begin % PAGE_SIZE) {
         p->begin += PAGE_SIZE - p->begin % PAGE_SIZE;
@@ -192,7 +211,8 @@ uint64_t _free_buddy(buddy_allocator_p p, uint64_t cur) {
     // printf("Freeing %lld of order %lld\n", cur, order);
     uint64_t cur_buddy = cur ^ (1 << order);
     // printf("Its buddy %lld has state %lld and order %lld\n", cur_buddy, p->storage[cur_buddy].used, p->storage[cur_buddy].order);
-    if (!p->storage[cur_buddy].used && p->storage[cur_buddy].order == order) {
+    if (!p->storage[cur_buddy].used && p->storage[cur_buddy].order == order &&
+            cur_buddy < p->page_count) {
         // print_list(p->lists[order]);
         // printf("Merging with a buddy\nNow ");
         erase_node(&p->storage[cur_buddy]);
