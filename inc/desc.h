@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#define ENTRIES (32 + 2)
+
 struct IDT_entry {                  // Interrupt Descriptor Table entry
     uint16_t offset15_0;            
     uint16_t segment_selector; 

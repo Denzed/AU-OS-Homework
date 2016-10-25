@@ -33,6 +33,7 @@ $(C_OBJECTS): %.o: %.c
 	$(CC) $(CFLAGS) -I$(INC) -g -MMD -c $< -o $@
 
 run: clean kernel
+	make clean_without_kernel
 ifeq ($(DEBUG), 1)
 	qemu-system-x86_64 -kernel kernel -s -serial stdio &
 	sleep 1
@@ -44,6 +45,9 @@ endif
 
 -include $(DEP)
 
+clean_without_kernel:
+	rm -f $(OBJ) $(DEP)
+
 .PHONY: clean
-clean:
-	rm -f kernel $(OBJ) $(DEP)
+clean: clean_without_kernel
+	rm -f kernel

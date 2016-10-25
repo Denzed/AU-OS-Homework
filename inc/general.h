@@ -6,6 +6,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+typedef uint64_t ptr;
+
 extern uint64_t handler_labels[];
 extern uint64_t *bootstrap_stack_top;
 
