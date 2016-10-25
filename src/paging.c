@@ -12,7 +12,6 @@ uint64_t *pml4_entries[TABLE_ENTRIES] = {0};
 
 void setup_paging() {
     uint64_t GB = 1ULL << 30;
-    // #define GB 0x40000000
     uint64_t have_gigabytes = memory_upper_bound / GB + 
                              (memory_upper_bound % GB != 0);
     uint64_t need_entries   = have_gigabytes / TABLE_ENTRIES + 
@@ -24,7 +23,7 @@ void setup_paging() {
         if (entry->type != 1) {
             continue;
         }
-        // 512 * 8 = 64KB = PAGE_SIZE --- what a coincidence!
+        // 512 * 8 = 4KB = PAGE_SIZE --- what a coincidence!
         ptr entry_begin = align_up(entry->base_addr);
         ptr entry_end = entry->base_addr + entry->length;
         if (entry_end > 4 * GB) {

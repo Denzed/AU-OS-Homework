@@ -86,13 +86,13 @@ static ptr _allocate_buddy(buddy_allocator *p, uint64_t order, uint64_t len) {
         return _allocate_buddy(p, order + 1, len);
     }
     uint64_t cur = p->lists[order] - p->storage;
-    erase_head(&p->lists[order]);
+    buddy_node_erase_head(&p->lists[order]);
     if (cur_len >= 2 * len) {
         uint64_t cur_buddy = cur ^ (1 << (order - 1));
         make_node(&p->storage[cur_buddy], order - 1, 0, NULL, NULL);
-        insert_head(&p->storage[cur_buddy], &p->lists[order - 1]);
+        buddy_node_insert_head(&p->storage[cur_buddy], &p->lists[order - 1]);
         make_node(&p->storage[cur], order - 1, 0, NULL, NULL);
-        insert_head(&p->storage[cur], &p->lists[order - 1]);
+        buddy_node_insert_head(&p->storage[cur], &p->lists[order - 1]);
         return _allocate_buddy(p, order - 1, len);
     }
     make_node(&p->storage[cur], order, true, NULL, NULL);
@@ -123,9 +123,9 @@ static void _free_buddy(buddy_allocator *p, uint64_t cur) {
     if (!p->storage[cur_buddy].used && p->storage[cur_buddy].order == order &&
             cur_buddy < p->page_count) {
         if (&p->storage[cur_buddy] == p->lists[order]) {
-            erase_head(&p->lists[order]);
+            buddy_node_erase_head(&p->lists[order]);
         } else {
-            erase_node(&p->storage[cur_buddy]);
+            buddy_node_erase_node(&p->storage[cur_buddy]);
         }
         ++p->storage[cur].order;
         if (cur_buddy < cur) {
@@ -137,7 +137,7 @@ static void _free_buddy(buddy_allocator *p, uint64_t cur) {
         return;
     }
     p->storage[cur].used = false;
-    insert_head(&p->storage[cur], &p->lists[order]);
+    buddy_node_insert_head(&p->storage[cur], &p->lists[order]);
     p->lists[order] = &p->storage[cur];
 }
 

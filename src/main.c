@@ -1,4 +1,5 @@
 #include "general.h"
+#include "block_allocator.h"
 #include "buddy.h"
 #include "debug.h"
 #include "desc.h"
@@ -28,7 +29,7 @@ void main(void) {
     setup_paging();
 // setup page allocation
     setup_buddy_allocators();
-  
+
 // page allocator test
     uint64_t tmp[2];
     printf("%#x\n", tmp[0] = allocate_buddy(2));
@@ -37,6 +38,17 @@ void main(void) {
     printf("%#x\n", tmp[0] = allocate_buddy(1));
     free_buddy(tmp[1]);
     printf("%#x\n", tmp[1] = allocate_buddy(1));
+    free_buddy(tmp[0]);
+    printf("OK!\n");
+
+// setup 4 bit allocator
+    block_allocator * alloc = create_block_allocator(3);
+// alloc test
+    printf("%#x\n", tmp[0] = allocate_block(alloc));
+    printf("%#x\n", tmp[1] = allocate_block(alloc));
+    free_block(alloc, tmp[0]);
+    printf("%#x\n", tmp[0] = allocate_block(alloc));
+
 
 // backtracing test
 /*
