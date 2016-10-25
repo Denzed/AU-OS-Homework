@@ -1,19 +1,19 @@
 #ifndef __ALGO_H__
 #define __ALGO_H__
 
-#define define_list_insert_head(t)     \
+#define define_list_insert_head(t)         \
 void t##_insert_head(t *node, t **list) {  \
-    if (list) {                        \
-        if (*list) {                   \
-            (*list)->prev = node;      \
-        }                              \
-        node->next = (*list);          \
-        (*list) = node;                \
-    }                                  \
+    if (list) {                            \
+        if (*list) {                       \
+            (*list)->prev = node;          \
+        }                                  \
+        node->next = (*list);              \
+        (*list) = node;                    \
+    }                                      \
 }
 
 #define define_list_erase_head(t)   \
-void t##_erase_head(t **list) {         \
+void t##_erase_head(t **list) {     \
     if (list && *list) {            \
         *list = (*list)->next;      \
         if (*list) {                \
@@ -23,7 +23,7 @@ void t##_erase_head(t **list) {         \
 }                                   
 
 #define define_list_erase_node(t)       \
-void t##_erase_node(t *node) {              \
+void t##_erase_node(t *node) {          \
     if (node->prev) {                   \
         node->prev->next = node->next;  \
     }                                   \
