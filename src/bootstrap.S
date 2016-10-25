@@ -49,7 +49,7 @@ gdt_ptr:
 	.long gdt
 gdt_ptr64:
 	.word (gdt_ptr - gdt - 1)
-	.quad (gdt + VIRTUAL_BASE) 
+	.quad (gdt + VIRTUAL_KERNEL_BASE) 
 idt_ptr:
 	.word 0
 	.quad 0
@@ -115,7 +115,7 @@ setup_mapping:
 	call videomem_puts
 	addl $4, %esp
 
-	movl $(bootstrap_pml3 - VIRTUAL_BASE), %edi
+	movl $(bootstrap_pml3 - VIRTUAL_KERNEL_BASE), %edi
 	movl $(PTE_PRESENT | PTE_WRITE | PTE_LARGE), %eax
 	movl $0, %ebx
 	movl %eax, (%edi)
@@ -137,16 +137,17 @@ setup_mapping:
 	movl %eax, 24(%edi)
 	movl %ebx, 28(%edi)
 
-	movl $(bootstrap_pml4 - VIRTUAL_BASE), %edi
-	movl $(bootstrap_pml3 - VIRTUAL_BASE + PTE_PRESENT + PTE_WRITE), %eax
+	movl $(bootstrap_pml4 - VIRTUAL_KERNEL_BASE), %edi
+	movl $(bootstrap_pml3 - VIRTUAL_KERNEL_BASE + PTE_PRESENT + PTE_WRITE), %eax
 	movl %eax, (%edi)
+	movl %eax, 2048(%edi)
 	movl %eax, 4088(%edi)
 
 	movl %cr4, %eax
 	orl $CR4_PAE, %eax
 	movl %eax, %cr4
 
-	movl $(bootstrap_pml4 - VIRTUAL_BASE), %eax
+	movl $(bootstrap_pml4 - VIRTUAL_KERNEL_BASE), %eax
 	movl %eax, %cr3
 	ret
 
@@ -240,6 +241,7 @@ start64:
 
 
 .global bootstrap_stack_top
+.global bootstrap_pml4
 	.bss
 	.align PAGE_SIZE
 	.space PAGE_SIZE

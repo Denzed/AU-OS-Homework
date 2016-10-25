@@ -5,6 +5,7 @@
 #include "handlers.h"
 #include "io.h"
 #include "memory.h"
+#include "paging.h"
 #include "pic.h"
 #include "pit.h"
 
@@ -23,6 +24,8 @@ void main(void) {
 // setup memory mapping
     setup_memory_map(false);
     output_memory_map(mmap, mmap_actual_size);
+// setup paging
+    setup_paging();
 // setup page allocation
     setup_buddy_allocators();
   

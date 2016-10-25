@@ -2,11 +2,27 @@
 #include "io.h"
 #include "memory.h"
 
-multiboot_info_header_t *get_multiboot_info_header(void) {
-    return (multiboot_info_header_t *) multiboot_info_h;
+ptr virt_addr(ptr phys_addr) {
+    return phys_addr + VIRTUAL_BASE;
 }
 
-void output_multiboot_info_header(multiboot_info_header_t *addr) {
+ptr phys_addr(ptr virt_addr) {
+    return virt_addr - VIRTUAL_BASE;
+}
+
+ptr align_down(ptr base) {
+    return base - base % PAGE_SIZE; 
+}
+
+ptr align_up(ptr base) {
+    return base + (base % PAGE_SIZE ? PAGE_SIZE - base % PAGE_SIZE : 0); 
+}
+
+multiboot_info_header *get_multiboot_info_header(void) {
+    return (multiboot_info_header *) multiboot_info_h;
+}
+
+void output_multiboot_info_header(multiboot_info_header *addr) {
     printf("Multiboot info header at %#x\n:", addr);
     printf("\tmagic: %#x\n", addr->magic);
     printf("\tflags: %#x\n", addr->flags);
@@ -19,11 +35,11 @@ void output_multiboot_info_header(multiboot_info_header_t *addr) {
 }
 
 
-multiboot_info_structure_t *get_multiboot_info_structure(void) {
-    return (multiboot_info_structure_t *) (uint64_t) multiboot_info_s;
+multiboot_info_structure *get_multiboot_info_structure(void) {
+    return (multiboot_info_structure *) (ptr) multiboot_info_s;
 }
 
-void output_multiboot_info_structure(multiboot_info_structure_t *addr) {
+void output_multiboot_info_structure(multiboot_info_structure *addr) {
     printf("Multiboot info structure at %#x\n:", addr);
     printf("\tflags: %#x\n", addr->flags);
     printf("\tmem_lower: %#x\n", addr->mem_lower);
@@ -48,13 +64,13 @@ void output_multiboot_info_structure(multiboot_info_structure_t *addr) {
     printf("\tvbe_interface_len: %#x\n", addr->vbe_interface_len);
 }
 
-
 mmap_entry_t mmap[MEMORY_MAP_MAXIMUM_SIZE];
 uint32_t mmap_actual_size = 0;
+ptr memory_upper_bound = 0;
 
 void setup_memory_map(bool debug) {
-    multiboot_info_header_t *mboot_info_h = get_multiboot_info_header();
-    multiboot_info_structure_t *mboot_info_s = get_multiboot_info_structure();
+    multiboot_info_header *mboot_info_h = get_multiboot_info_header();
+    multiboot_info_structure *mboot_info_s = get_multiboot_info_structure();
     if (debug) {
         if (!mboot_info_h) {
             printf("Multiboot info header not found!\n");
@@ -77,7 +93,7 @@ void setup_memory_map(bool debug) {
     mmap[0].base_addr = mboot_info_h->load_addr;
     mmap[0].length = mboot_info_h->bss_end_addr - 
                      mboot_info_h->load_addr;
-    mmap[0].type = 0;
+    mmap[0].type = TYPE_KERNEL;
     ++mmap_actual_size;
     uint32_t kernel_begin = mboot_info_h->load_addr;
     uint32_t kernel_end = mboot_info_h->bss_end_addr;
@@ -111,9 +127,16 @@ void setup_memory_map(bool debug) {
             }
         }
         mmap_ptr += sizeof(entry.size) + entry.size;
-        if (mmap_actual_size > MEMORY_MAP_MAXIMUM_SIZE) {
+        if (mmap_actual_size >= MEMORY_MAP_MAXIMUM_SIZE) {
             printf("Memory map overflow! Current MEMORY_MAP_MAXIMUM_SIZE "
                 "constant is not enough!\n");
+        }
+    }
+    // calculate upper bound
+    for (uint64_t i = 0; i < mmap_actual_size; ++i) {
+        ptr entry_end = mmap[i].base_addr + mmap[i].length;
+        if (entry_end > memory_upper_bound) {
+            memory_upper_bound = entry_end;
         }
     }
 }
