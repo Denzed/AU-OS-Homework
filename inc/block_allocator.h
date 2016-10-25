@@ -11,7 +11,6 @@ typedef struct block_allocator {
 
 block_allocator *create_block_allocator(uint16_t);
 ptr allocate_block(block_allocator *);
-bool is_owned(block_allocator *, ptr);
 void free_block(block_allocator *, ptr);
 
 #endif /* __BLOCK_H__ */

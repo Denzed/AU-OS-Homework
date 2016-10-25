@@ -6,15 +6,12 @@
 #include "memory.h"
 
 struct _free_block {
-    block_allocator *parent;
     _free_block *prev, *next;
 };
 
 void make_block(_free_block *block, 
-                block_allocator *alloc, 
                 _free_block *prev, 
                 _free_block *next) {
-    block->parent = alloc;
     block->prev = prev;
     block->next = next;
 }
@@ -45,7 +42,7 @@ ptr allocate_block(block_allocator *alloc) {
             alloc->unmapped_end = addr + PAGE_SIZE * pages;
         }
         _free_block *new_block = (_free_block *) alloc->unmapped_begin;
-        make_block(new_block, alloc, NULL, NULL);
+        make_block(new_block, NULL, NULL);
         _free_block_insert_head(new_block, &alloc->free_begin);
         alloc->unmapped_begin += sizeof(_free_block) + alloc->block_size;
     }
@@ -54,19 +51,8 @@ ptr allocate_block(block_allocator *alloc) {
     return res;
 }
 
-bool is_owned(block_allocator *alloc, ptr addr) {
-    return ((_free_block *) (addr - sizeof(_free_block)))->parent == alloc;
-}
-
 void free_block(block_allocator *alloc, ptr addr) {
-    if (!(alloc && addr)) {
-        printf("Incorrect address or allocator pointer!\n");
-        return;
-    } else if (!is_owned(alloc, addr)) {
-        printf("The address is not owned by the specified allocator!\n");
-        return;
-    }
     _free_block *new_block = (_free_block *) (addr - sizeof(_free_block));
-    make_block(new_block, alloc, NULL, NULL);
+    make_block(new_block, NULL, NULL);
     _free_block_insert_head(new_block, &alloc->free_begin);
 }
