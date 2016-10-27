@@ -5,6 +5,7 @@
 #include "desc.h"
 #include "handlers.h"
 #include "io.h"
+#include "malloc.h"
 #include "memory.h"
 #include "paging.h"
 #include "pic.h"
@@ -31,7 +32,7 @@ void main(void) {
     setup_buddy_allocators();
 
 // page allocator test
-    uint64_t tmp[2];
+    /*uint64_t tmp[2];
     printf("%#x\n", tmp[0] = allocate_buddy(2));
     printf("%#x\n", tmp[1] = allocate_buddy(1));
     free_buddy(tmp[0]);
@@ -39,16 +40,27 @@ void main(void) {
     free_buddy(tmp[1]);
     printf("%#x\n", tmp[1] = allocate_buddy(1));
     free_buddy(tmp[0]);
-    printf("OK!\n");
+    printf("OK!\n");*/
 
-// setup 4 bit allocator
+// block allocation test
+/*// setup 3 byte allocator
     block_allocator * alloc = create_block_allocator(3);
+
 // alloc test
     printf("%#x\n", tmp[0] = allocate_block(alloc));
     printf("%#x\n", tmp[1] = allocate_block(alloc));
     free_block(alloc, tmp[0]);
     printf("%#x\n", tmp[0] = allocate_block(alloc));
+    printf("OK!\n");*/
 
+// setup malloc
+    setup_malloc();
+// malloc test
+    ptr a = malloc(15), b = malloc(57), c = malloc(179);
+    printf("%#x %#x %#x\n", a, b, c);
+    // free(a), free(b), free(c);
+    a = malloc(15), b = malloc(57), c = malloc(179);
+    printf("%#x %#x %#x\n", a, b, c);
 
 // backtracing test
 /*

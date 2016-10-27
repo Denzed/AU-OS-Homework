@@ -142,19 +142,18 @@ static void _free_buddy(buddy_allocator *p, uint64_t cur) {
 }
 
 /* go through all allocators and try to free the previously allocated memory
-   starting at given address;
-   returns 0 if succeeds, 1 if fails */
-void free_buddy(ptr base) {
-    if (base % PAGE_SIZE) {
+   starting at given address */
+void free_buddy(ptr addr) {
+    if (addr % PAGE_SIZE) {
         printf("Address is not aligned!\n");
         return;
     }
     for (uint64_t i = 0; i < buddy_allocator_count; ++i) {
         buddy_allocator *cur = &buddy_allocators[i];
-        if (cur->begin <= base &&
-            base < cur->begin + 
+        if (cur->begin <= addr &&
+            addr < cur->begin + 
                    cur->page_count * PAGE_SIZE) {
-            _free_buddy(cur, (base - cur->begin) / PAGE_SIZE);
+            _free_buddy(cur, (addr - cur->begin) / PAGE_SIZE);
             return;
         }
     }

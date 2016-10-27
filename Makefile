@@ -1,6 +1,8 @@
 CC ?= gcc
 LD ?= ld
 
+MAKEFLAGS += --jobs=$(shell nproc)
+
 CFLAGS := -g -m64 -mno-red-zone -mno-mmx -mno-sse -mno-sse2 -ffreestanding \
 	-mcmodel=kernel -Wall -Wextra -Werror -pedantic -std=c99 \
 	-fno-omit-frame-pointer \
@@ -13,7 +15,7 @@ SRC := ./src
 
 C_SOURCES := $(wildcard $(SRC)/*.c)
 C_OBJECTS := $(C_SOURCES:.c=.o)
-C_DEPS := $(C_SOURCES:.c=.d)
+C_DEPS := $(C_SOdsdsURCES:.c=.d)
 S_SOURCES := $(wildcard $(SRC)/*.S)
 S_OBJECTS := $(S_SOURCES:.S=.o)
 S_DEPS := $(S_SOURCES:.S=.d)

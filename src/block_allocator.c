@@ -9,6 +9,13 @@ struct _free_block {
     _free_block *prev, *next;
 };
 
+void make_block(_free_block *block, 
+                _free_block *prev, 
+                _free_block *next) {
+    block->prev = prev;
+    block->next = next;
+}
+
 define_list_operations(_free_block)
 
 block_allocator *create_block_allocator(uint16_t size) {
@@ -35,7 +42,7 @@ ptr allocate_block(block_allocator *alloc) {
             alloc->unmapped_end = addr + PAGE_SIZE * pages;
         }
         _free_block *new_block = (_free_block *) alloc->unmapped_begin;
-        new_block->prev = new_block->next = NULL;
+        make_block(new_block, NULL, NULL);
         _free_block_insert_head(new_block, &alloc->free_begin);
         alloc->unmapped_begin += sizeof(_free_block) + alloc->block_size;
     }
@@ -46,6 +53,6 @@ ptr allocate_block(block_allocator *alloc) {
 
 void free_block(block_allocator *alloc, ptr addr) {
     _free_block *new_block = (_free_block *) (addr - sizeof(_free_block));
-    new_block->prev = new_block->next = NULL;
+    make_block(new_block, NULL, NULL);
     _free_block_insert_head(new_block, &alloc->free_begin);
 }
